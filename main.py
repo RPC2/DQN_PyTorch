@@ -1,4 +1,4 @@
-
+from agent import Agent
 
 def main():
     agent = Agent()
