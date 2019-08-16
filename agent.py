@@ -3,6 +3,7 @@ import numpy as np
 import gym
 import os
 import random
+import torch.optim as optim
 
 from config import AgentConfig, EnvConfig
 from memory import ReplayMemory
@@ -15,10 +16,11 @@ class Agent(AgentConfig, EnvConfig):
         self.env = gym.make(self.env_name)
         self.action_size = self.env.action_space.n  # 2 for cartpole
         self.memory = ReplayMemory(action_size=self.action_size, per=self.per)
-        if torch.cuda.is_available():
-            if self.train_cartpole:
-                self.policy_network = MlpPolicy(action_size=self.action_size)
-                self.target_network = MlpPolicy(action_size=self.action_size)
+        if self.train_cartpole:
+            self.policy_network = MlpPolicy(action_size=self.action_size)
+            self.target_network = MlpPolicy(action_size=self.action_size)
+        self.optimizer = optim.Adam(self.policy_network.parameters(), lr=0.01)
+        self.loss = 0
 
     def new_random_game(self):
         self.env.reset()
@@ -79,7 +81,6 @@ class Agent(AgentConfig, EnvConfig):
                 current_state = next_state
                 total_episode_reward += reward
 
-                # train
                 if step > self.start_learning and step % self.train_freq == 0:
                     if self.per:
                         state_batch, reward_batch, action_batch, terminal_batch, next_state_batch, leaf_index_batch, \
@@ -87,7 +88,13 @@ class Agent(AgentConfig, EnvConfig):
                     else:
                         state_batch, reward_batch, action_batch, terminal_batch, \
                             next_state_batch = self.memory.sample(self.batch_size)
+                        self.minibatch_learning(state_batch, reward_batch, action_batch, terminal_batch,
+                                                next_state_batch)
 
+                if step % 100 == 0:
+                    print(
+                        'episode: %.2f, total step: %.2f, episode length: %.2f, last_episode_reward: %.2f, loss: %.4f'
+                        % (episode, step, episode_length, last_episode_reward, self.loss))
 
                 if terminal:
                     last_episode_reward = total_episode_reward
@@ -98,10 +105,32 @@ class Agent(AgentConfig, EnvConfig):
                     if self.gif:
                         generate_gif(last_episode_length, frames_for_gif, total_episode_reward, "./GIF/", episode)
 
+                    break
+
             self.env.render()
 
     def minibatch_learning(self, state_batch, reward_batch, action_batch, terminal_batch, next_state_batch,
                            leaf_index_batch=None, is_weights=None):
-        # Get target network Q value
-        target_q_values = self.target_network(state_batch)
+
+        y_batch = []
+        for i in range(self.batch_size):
+            if terminal_batch[i]:
+                y_batch.append(reward_batch[i])
+            else:
+                print(self.target_network(torch.FloatTensor(next_state_batch[i])))
+                next_state_q = np.max(self.target_network(torch.FloatTensor(next_state_batch[i])),axis=1)
+                y = reward_batch[i] + self.gamma * next_state_q
+                y_batch.append(y)
+
+        self.loss = np.power(y_batch - np.max(self.policy_network(state_batch), axis=1), 2)
+        print(y_batch)
+        print(self.policy_network(state_batch))
+
+        self.optimizer.zero_grad()
+        self.loss.backward()
+        self.optimizer.step()
+
+
+
+
 

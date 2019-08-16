@@ -37,9 +37,12 @@ class ReplayMemory:
             a = 1  # TODO: implement PER
         else:  # randomly select samples from memory
             for i in range(batch_size):
-                data_index = random.randint(0, len(self.states))
+                # data_index = random.randint(0, len(self.states))
+                data_index = random.randint(0, self.current)  # TODO: use the above line after testing
                 state_batch.append(self.states[data_index])
                 reward_batch.append(self.rewards[data_index])
                 action_batch.append(self.actions[data_index])
                 terminal_batch.append(self.terminals[data_index])
                 next_state_batch.append(self.next_states[data_index])
+
+            return state_batch, reward_batch, action_batch, terminal_batch, next_state_batch

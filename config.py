@@ -1,10 +1,10 @@
 class AgentConfig:
     frames = 4
     # Learning
-    discount = 0.99
+    gamma = 0.99
     to_train = True
     train_freq = 32
-    start_learning = 50000
+    start_learning = 100
     epsilon = 1
     memory_size = 50000
     batch_size = 32
