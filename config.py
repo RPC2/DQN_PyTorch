@@ -27,12 +27,13 @@ class AgentConfig:
     # Algorithm selection
     soft_update = False
     train_cartpole = True
+    per = False
 
     double_q_learning = True
     duelling_dqn = True
 
     gif = False
-    gif_every = 10
+    gif_every = 9999999
 
 
 class EnvConfig:
