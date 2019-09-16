@@ -24,7 +24,7 @@ class Agent(AgentConfig, EnvConfig):
         if self.train_cartpole:
             self.policy_network = MlpPolicy(action_size=self.action_size).to(device)
             # self.target_network = MlpPolicy(action_size=self.action_size).to(device)
-        self.optimizer = optim.Adam(self.policy_network.parameters(), lr=0.005)
+        self.optimizer = optim.Adam(self.policy_network.parameters(), lr=0.001)
         self.loss = 0
         self.criterion = nn.MSELoss()
 
@@ -59,6 +59,7 @@ class Agent(AgentConfig, EnvConfig):
 
             # Get initial state
             current_state, reward, action, terminal = self.new_random_game()
+            current_state = torch.FloatTensor(current_state)
             # print("current_state: " + str(current_state)) # [-0.00239923  0.23727428 -0.01354857 -0.29871889]
             # current_state = set_init_state(screen)
 
@@ -68,14 +69,15 @@ class Agent(AgentConfig, EnvConfig):
                 episode_length += 1
 
                 # Choose action
-                if random.uniform(0, 1) < self.epsilon:
+                if np.random.rand() < self.epsilon:
                     action = random.randrange(self.action_size)
                 else:
                     q_values = self.policy_network(current_state.to(device))
-                    action = np.argmax(q_values)
+                    action = torch.argmax(q_values).item()
 
                 # Act
                 new_state, reward, terminal, info = self.env.step(action)
+                new_state = torch.FloatTensor(new_state)
 
                 if self.gif:
                     frames_for_gif.append(new_state)
@@ -95,11 +97,6 @@ class Agent(AgentConfig, EnvConfig):
                         self.minibatch_learning(state_batch, reward_batch, action_batch, terminal_batch,
                                                 next_state_batch)
 
-                if step % 100 == 0:
-                    print(
-                        'episode: %.2f, total step: %.2f, last_episode length: %.2f, last_episode_reward: %.2f, loss: %.4f'
-                        % (episode, step, last_episode_length, last_episode_reward, self.loss))
-
                 # if step % self.reset_step == 0:
                 #     self.target_network.load_state_dict(self.policy_network.state_dict())
 
@@ -110,9 +107,14 @@ class Agent(AgentConfig, EnvConfig):
                 #     plt.ylabel('reward')
                 #     plt.show()
 
+                self.epsilon_decay()
+
                 if terminal:
                     last_episode_reward = total_episode_reward
                     last_episode_length = step - start_step
+
+                    print('episode: %.2f, total step: %.2f, last_episode length: %.2f, last_episode_reward: %.2f, '
+                          'loss: %.4f' % (episode, step, last_episode_length, last_episode_reward, self.loss))
 
                     self.env.reset()
 
@@ -144,4 +146,8 @@ class Agent(AgentConfig, EnvConfig):
         self.optimizer.zero_grad()
         self.loss.backward()
         self.optimizer.step()
+
+    def epsilon_decay(self):
+        self.epsilon *= self.epsilon_decay_rate
+        self.epsilon = max(self.epsilon, self.epsilon_minimum)
 
