@@ -4,11 +4,16 @@ import gym
 import os
 import random
 import torch.optim as optim
+import torch.nn as nn
+import matplotlib.pyplot as plt
+import matplotlib.animation as anim
 
 from config import AgentConfig, EnvConfig
 from memory import ReplayMemory
 from network import MlpPolicy
 from ops import *
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class Agent(AgentConfig, EnvConfig):
@@ -17,10 +22,11 @@ class Agent(AgentConfig, EnvConfig):
         self.action_size = self.env.action_space.n  # 2 for cartpole
         self.memory = ReplayMemory(action_size=self.action_size, per=self.per)
         if self.train_cartpole:
-            self.policy_network = MlpPolicy(action_size=self.action_size)
-            self.target_network = MlpPolicy(action_size=self.action_size)
-        self.optimizer = optim.Adam(self.policy_network.parameters(), lr=0.01)
+            self.policy_network = MlpPolicy(action_size=self.action_size).to(device)
+            # self.target_network = MlpPolicy(action_size=self.action_size).to(device)
+        self.optimizer = optim.Adam(self.policy_network.parameters(), lr=0.005)
         self.loss = 0
+        self.criterion = nn.MSELoss()
 
     def new_random_game(self):
         self.env.reset()
@@ -32,6 +38,8 @@ class Agent(AgentConfig, EnvConfig):
         episode = 0
         step = 0
         last_episode_reward = 0
+        last_episode_length = 0
+        y = []
 
         if not os.path.exists("./GIF/"):
             os.makedirs("./GIF/")
@@ -50,8 +58,9 @@ class Agent(AgentConfig, EnvConfig):
                 self.gif = False
 
             # Get initial state
-            screen, reward, action, terminal = self.new_random_game()
-            current_state = set_init_state(screen)
+            current_state, reward, action, terminal = self.new_random_game()
+            # print("current_state: " + str(current_state)) # [-0.00239923  0.23727428 -0.01354857 -0.29871889]
+            # current_state = set_init_state(screen)
 
             # A step in an episode
             while episode_length < self.max_episode_length:
@@ -62,7 +71,7 @@ class Agent(AgentConfig, EnvConfig):
                 if random.uniform(0, 1) < self.epsilon:
                     action = random.randrange(self.action_size)
                 else:
-                    q_values = self.policy_network(current_state)
+                    q_values = self.policy_network(current_state.to(device))
                     action = np.argmax(q_values)
 
                 # Act
@@ -71,14 +80,9 @@ class Agent(AgentConfig, EnvConfig):
                 if self.gif:
                     frames_for_gif.append(new_state)
 
-                if self.train_cartpole:
-                    next_state = np.append(current_state[:3], [new_state], axis=0)
+                self.memory.add(current_state, reward, action, terminal, new_state)
 
-                action_one_hot = [1 if i == action else 0 for i in range(self.action_size)]
-
-                self.memory.add(current_state, reward, action_one_hot, terminal, next_state)
-
-                current_state = next_state
+                current_state = new_state
                 total_episode_reward += reward
 
                 if step > self.start_learning and step % self.train_freq == 0:
@@ -93,8 +97,18 @@ class Agent(AgentConfig, EnvConfig):
 
                 if step % 100 == 0:
                     print(
-                        'episode: %.2f, total step: %.2f, episode length: %.2f, last_episode_reward: %.2f, loss: %.4f'
-                        % (episode, step, episode_length, last_episode_reward, self.loss))
+                        'episode: %.2f, total step: %.2f, last_episode length: %.2f, last_episode_reward: %.2f, loss: %.4f'
+                        % (episode, step, last_episode_length, last_episode_reward, self.loss))
+
+                # if step % self.reset_step == 0:
+                #     self.target_network.load_state_dict(self.policy_network.state_dict())
+
+                # if step % self.plot_every == 0:
+                #     y.append(last_episode_reward)
+                #     x = range(len(y))
+                #     plt.plot(x, y)
+                #     plt.ylabel('reward')
+                #     plt.show()
 
                 if terminal:
                     last_episode_reward = total_episode_reward
@@ -109,28 +123,25 @@ class Agent(AgentConfig, EnvConfig):
 
             self.env.render()
 
+        self.env.close()
+
     def minibatch_learning(self, state_batch, reward_batch, action_batch, terminal_batch, next_state_batch,
                            leaf_index_batch=None, is_weights=None):
 
-        y_batch = []
+        y_batch = torch.FloatTensor()
         for i in range(self.batch_size):
             if terminal_batch[i]:
-                y_batch.append(reward_batch[i])
+                y_batch = torch.cat((y_batch, torch.FloatTensor([reward_batch[i]]).to(device)), 0)
             else:
-                print(self.target_network(torch.FloatTensor(next_state_batch[i])))
-                next_state_q = np.max(self.target_network(torch.FloatTensor(next_state_batch[i])),axis=1)
-                y = reward_batch[i] + self.gamma * next_state_q
-                y_batch.append(y)
+                next_state_q = torch.max(self.policy_network(torch.FloatTensor(next_state_batch[i]).to(device)))
+                y = torch.FloatTensor([reward_batch[i] + self.gamma * next_state_q])
+                y_batch = torch.cat((y_batch, y), 0)
 
-        self.loss = np.power(y_batch - np.max(self.policy_network(state_batch), axis=1), 2)
-        print(y_batch)
-        print(self.policy_network(state_batch))
+        policy_q = torch.max(self.policy_network(torch.FloatTensor(state_batch)), dim=1)[0]
+
+        self.loss = self.criterion(policy_q, y_batch)
 
         self.optimizer.zero_grad()
         self.loss.backward()
         self.optimizer.step()
-
-
-
-
 

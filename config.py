@@ -3,7 +3,7 @@ class AgentConfig:
     # Learning
     gamma = 0.99
     to_train = True
-    train_freq = 32
+    train_freq = 1
     start_learning = 100
     epsilon = 1
     memory_size = 50000
@@ -15,6 +15,7 @@ class AgentConfig:
     learning_rate_decay = 0.96
     learning_rate_decay_step = 5 * scale
     reset_step = 10000
+    plot_every = 1000
 
     epsilon_minimum = 0.05
     epsilon_decay = 0.999

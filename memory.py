@@ -5,10 +5,10 @@ import random
 class ReplayMemory:
     def __init__(self, memory_size=100000, action_size=4, cartpole_env=True, per=False):
         if cartpole_env:
-            self.states = np.zeros(shape=(memory_size, 1, 4, 4))
-            self.next_states = np.zeros(shape=(memory_size, 1, 4, 4))
+            self.states = np.zeros(shape=(memory_size, 4))
+            self.next_states = np.zeros(shape=(memory_size, 4))
 
-        self.actions = np.zeros(shape=(memory_size, action_size))
+        self.actions = np.zeros(memory_size)
         self.rewards = np.zeros(memory_size)
         self.terminals = np.zeros(memory_size)
 
