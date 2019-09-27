@@ -20,7 +20,7 @@ reset_every = 10 (terminated episode)
 
 epsilon = 1
 
-epsilon_minimum = 0.1
+epsilon_minimum = 0.05
 
 epsilon_decay_rate = 0.9999
 

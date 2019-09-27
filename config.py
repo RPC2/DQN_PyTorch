@@ -9,7 +9,7 @@ class AgentConfig:
     reset_step = 10
 
     epsilon = 1
-    epsilon_minimum = 0.1
+    epsilon_minimum = 0.05
     epsilon_decay_rate = 0.9999
     learning_rate = 0.001
 

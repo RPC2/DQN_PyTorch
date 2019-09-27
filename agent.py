@@ -150,7 +150,7 @@ def plot_graph(reward_history):
         num += 1
         plt.plot(df['x'], df[column], marker='', color=palette(num), linewidth=1, alpha=0.9, label=column)
     plt.title("CartPole", fontsize=14)
-    plt.xlabel("step", fontsize=12)
+    plt.xlabel("episode", fontsize=12)
     plt.ylabel("score", fontsize=12)
 
     plt.savefig('score.png')
