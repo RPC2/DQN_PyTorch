@@ -1,16 +1,16 @@
 class AgentConfig:
     # Learning
-    gamma = 0.95
+    gamma = 0.99
     train_freq = 1
-    start_learning = 5
+    start_learning = 10
     memory_size = 1000000
     batch_size = 32
-    plot_every = 1000
-    reset_step = 5
+    plot_every = 50
+    reset_step = 10
 
-    epsilon = 0.9
-    epsilon_minimum = 0.01
-    epsilon_decay_rate = 0.995
+    epsilon = 1
+    epsilon_minimum = 0.1
+    epsilon_decay_rate = 0.9999
     learning_rate = 0.001
 
     max_step = 40000000       # 40M steps max
@@ -25,7 +25,6 @@ class AgentConfig:
 
     gif = False
     gif_every = 9999999
-    plot_every = 100
 
 
 class EnvConfig:

@@ -21,7 +21,7 @@ class Agent(AgentConfig, EnvConfig):
     def __init__(self):
         self.env = gym.make(self.env_name)
         self.action_size = self.env.action_space.n  # 2 for cartpole
-        self.memory = ReplayMemory(action_size=self.action_size, per=self.per)
+        self.memory = ReplayMemory(memory_size=self.memory_size, action_size=self.action_size, per=self.per)
         if self.train_cartpole:
             self.policy_network = MlpPolicy(action_size=self.action_size).to(device)
             self.target_network = MlpPolicy(action_size=self.action_size).to(device)
@@ -57,8 +57,9 @@ class Agent(AgentConfig, EnvConfig):
                 self.gif = False
 
             # Get initial state
-            current_state, reward, action, terminal = self.new_random_game()
-            current_state = torch.FloatTensor(current_state).to(device)
+            state, reward, action, terminal = self.new_random_game()
+            current_state = state
+            # current_state = np.stack((state, state, state, state))
 
             # A step in an episode
             while episode_length < self.max_episode_length:
@@ -67,11 +68,16 @@ class Agent(AgentConfig, EnvConfig):
 
                 # Choose action
                 action = random.randrange(self.action_size) if np.random.rand() < self.epsilon else \
-                    torch.argmax(self.policy_network(current_state)).item()
+                    torch.argmax(self.policy_network(torch.FloatTensor(current_state).to(device))).item()
+
+                print(current_state)
+                print(self.policy_network(torch.FloatTensor(current_state).to(device)))
+                # print(torch.argmax(self.policy_network(torch.FloatTensor(current_state).to(device))).item())
 
                 # Act
-                new_state, reward, terminal, _ = self.env.step(action)
-                new_state = torch.FloatTensor(new_state).to(device)
+                state, reward, terminal, _ = self.env.step(action)
+                new_state = state
+                # new_state = np.concatenate((current_state[1:], [state]))
 
                 reward = -1 if terminal else reward
 
@@ -85,13 +91,17 @@ class Agent(AgentConfig, EnvConfig):
 
                 self.epsilon_decay()
 
+                if step > self.start_learning and step % self.train_freq == 0:
+                    self.minibatch_learning()
+
                 if terminal:
                     last_episode_reward = total_episode_reward
                     last_episode_length = step - start_step
                     reward_history.append(last_episode_reward)
 
                     print('episode: %.2f, total step: %.2f, last_episode length: %.2f, last_episode_reward: %.2f, '
-                          'loss: %.4f' % (episode, step, last_episode_length, last_episode_reward, self.loss))
+                          'loss: %.4f, eps = %.2f' % (episode, step, last_episode_length, last_episode_reward,
+                                                      self.loss, self.epsilon))
 
                     self.env.reset()
 
@@ -99,9 +109,6 @@ class Agent(AgentConfig, EnvConfig):
                         generate_gif(last_episode_length, frames_for_gif, total_episode_reward, "./GIF/", episode)
 
                     break
-
-            if step > self.start_learning and episode % self.train_freq == 0:
-                self.minibatch_learning()
 
             if episode % self.reset_step == 0:
                 self.target_network.load_state_dict(self.policy_network.state_dict())
@@ -142,7 +149,7 @@ class Agent(AgentConfig, EnvConfig):
 
 
 def plot_graph(reward_history):
-    df = pd.DataFrame({'x': range(len(reward_history)), 'Score': reward_history})
+    df = pd.DataFrame({'x': range(len(reward_history)), 'y': reward_history})
     plt.style.use('seaborn-darkgrid')
     palette = plt.get_cmap('Set1')
     num = 0
