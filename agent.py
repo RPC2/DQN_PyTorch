@@ -70,9 +70,8 @@ class Agent(AgentConfig, EnvConfig):
                 action = random.randrange(self.action_size) if np.random.rand() < self.epsilon else \
                     torch.argmax(self.policy_network(torch.FloatTensor(current_state).to(device))).item()
 
-                print(current_state)
-                print(self.policy_network(torch.FloatTensor(current_state).to(device)))
-                # print(torch.argmax(self.policy_network(torch.FloatTensor(current_state).to(device))).item())
+                # print(current_state)
+                # print(self.policy_network(torch.FloatTensor(current_state).to(device)))
 
                 # Act
                 state, reward, terminal, _ = self.env.step(action)
@@ -135,9 +134,6 @@ class Agent(AgentConfig, EnvConfig):
         current_state_q = torch.max(self.policy_network(torch.FloatTensor(state_batch).to(device)), dim=1)[0]
 
         self.loss = self.criterion(current_state_q, y_batch).mean()
-        # print("current_state_q: " + str(current_state_q))
-        # print("y_batch: " + str(y_batch))
-        # print("loss: " + str(self.loss))
 
         self.optimizer.zero_grad()
         self.loss.backward()
@@ -156,7 +152,6 @@ def plot_graph(reward_history):
     for column in df.drop('x', axis=1):
         num += 1
         plt.plot(df['x'], df[column], marker='', color=palette(num), linewidth=1, alpha=0.9, label=column)
-    # plt.legend(loc=2, ncol=1)
     plt.title("CartPole", fontsize=14)
     plt.xlabel("step", fontsize=12)
     plt.ylabel("score", fontsize=12)

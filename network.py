@@ -10,10 +10,6 @@ class MlpPolicy(nn.Module):
         self.fc1 = nn.Linear(self.input_size, 24)
         self.fc2 = nn.Linear(24, 24)
         self.fc3 = nn.Linear(24, self.action_size)
-        # torch.nn.init.kaiming_uniform(self.fc1.weight)
-        # torch.nn.init.kaiming_uniform(self.fc2.weight)
-        # torch.nn.init.kaiming_uniform(self.fc3.weight)
-        # torch.nn.init.kaiming_uniform(self.fc4.weight)
         self.tanh = nn.Tanh()
         self.relu = nn.ReLU()
 
