@@ -6,7 +6,8 @@ import random
 import torch.optim as optim
 import torch.nn as nn
 import matplotlib.pyplot as plt
-import matplotlib.animation as anim
+import numpy as np
+import pandas as pd
 
 from config import AgentConfig, EnvConfig
 from memory import ReplayMemory
@@ -23,8 +24,8 @@ class Agent(AgentConfig, EnvConfig):
         self.memory = ReplayMemory(action_size=self.action_size, per=self.per)
         if self.train_cartpole:
             self.policy_network = MlpPolicy(action_size=self.action_size).to(device)
-            # self.target_network = MlpPolicy(action_size=self.action_size).to(device)
-        self.optimizer = optim.Adam(self.policy_network.parameters(), lr=0.001)
+            self.target_network = MlpPolicy(action_size=self.action_size).to(device)
+        self.optimizer = optim.Adam(self.policy_network.parameters(), lr=self.learning_rate)
         self.loss = 0
         self.criterion = nn.MSELoss()
 
@@ -37,9 +38,7 @@ class Agent(AgentConfig, EnvConfig):
     def train(self):
         episode = 0
         step = 0
-        last_episode_reward = 0
-        last_episode_length = 0
-        y = []
+        reward_history = []
 
         if not os.path.exists("./GIF/"):
             os.makedirs("./GIF/")
@@ -59,9 +58,7 @@ class Agent(AgentConfig, EnvConfig):
 
             # Get initial state
             current_state, reward, action, terminal = self.new_random_game()
-            current_state = torch.FloatTensor(current_state)
-            # print("current_state: " + str(current_state)) # [-0.00239923  0.23727428 -0.01354857 -0.29871889]
-            # current_state = set_init_state(screen)
+            current_state = torch.FloatTensor(current_state).to(device)
 
             # A step in an episode
             while episode_length < self.max_episode_length:
@@ -69,15 +66,14 @@ class Agent(AgentConfig, EnvConfig):
                 episode_length += 1
 
                 # Choose action
-                if np.random.rand() < self.epsilon:
-                    action = random.randrange(self.action_size)
-                else:
-                    q_values = self.policy_network(current_state.to(device))
-                    action = torch.argmax(q_values).item()
+                action = random.randrange(self.action_size) if np.random.rand() < self.epsilon else \
+                    torch.argmax(self.policy_network(current_state)).item()
 
                 # Act
-                new_state, reward, terminal, info = self.env.step(action)
-                new_state = torch.FloatTensor(new_state)
+                new_state, reward, terminal, _ = self.env.step(action)
+                new_state = torch.FloatTensor(new_state).to(device)
+
+                reward = -1 if terminal else reward
 
                 if self.gif:
                     frames_for_gif.append(new_state)
@@ -87,31 +83,12 @@ class Agent(AgentConfig, EnvConfig):
                 current_state = new_state
                 total_episode_reward += reward
 
-                if step > self.start_learning and step % self.train_freq == 0:
-                    if self.per:
-                        state_batch, reward_batch, action_batch, terminal_batch, next_state_batch, leaf_index_batch, \
-                            is_weights = self.memory.sample(self.batch_size)
-                    else:
-                        state_batch, reward_batch, action_batch, terminal_batch, \
-                            next_state_batch = self.memory.sample(self.batch_size)
-                        self.minibatch_learning(state_batch, reward_batch, action_batch, terminal_batch,
-                                                next_state_batch)
-
-                # if step % self.reset_step == 0:
-                #     self.target_network.load_state_dict(self.policy_network.state_dict())
-
-                # if step % self.plot_every == 0:
-                #     y.append(last_episode_reward)
-                #     x = range(len(y))
-                #     plt.plot(x, y)
-                #     plt.ylabel('reward')
-                #     plt.show()
-
                 self.epsilon_decay()
 
                 if terminal:
                     last_episode_reward = total_episode_reward
                     last_episode_length = step - start_step
+                    reward_history.append(last_episode_reward)
 
                     print('episode: %.2f, total step: %.2f, last_episode length: %.2f, last_episode_reward: %.2f, '
                           'loss: %.4f' % (episode, step, last_episode_length, last_episode_reward, self.loss))
@@ -123,25 +100,37 @@ class Agent(AgentConfig, EnvConfig):
 
                     break
 
-            self.env.render()
+            if step > self.start_learning and episode % self.train_freq == 0:
+                self.minibatch_learning()
+
+            if episode % self.reset_step == 0:
+                self.target_network.load_state_dict(self.policy_network.state_dict())
+
+            if episode % self.plot_every == 0:
+                plot_graph(reward_history)
+
+            # self.env.render()
 
         self.env.close()
 
-    def minibatch_learning(self, state_batch, reward_batch, action_batch, terminal_batch, next_state_batch,
-                           leaf_index_batch=None, is_weights=None):
+    def minibatch_learning(self):
+        state_batch, reward_batch, action_batch, terminal_batch, next_state_batch = self.memory.sample(self.batch_size)
 
         y_batch = torch.FloatTensor()
         for i in range(self.batch_size):
             if terminal_batch[i]:
-                y_batch = torch.cat((y_batch, torch.FloatTensor([reward_batch[i]]).to(device)), 0)
+                y_batch = torch.cat((y_batch, torch.FloatTensor([reward_batch[i]])), 0)
             else:
-                next_state_q = torch.max(self.policy_network(torch.FloatTensor(next_state_batch[i]).to(device)))
+                next_state_q = torch.max(self.target_network(torch.FloatTensor(next_state_batch[i]).to(device)))
                 y = torch.FloatTensor([reward_batch[i] + self.gamma * next_state_q])
                 y_batch = torch.cat((y_batch, y), 0)
 
-        policy_q = torch.max(self.policy_network(torch.FloatTensor(state_batch)), dim=1)[0]
+        current_state_q = torch.max(self.policy_network(torch.FloatTensor(state_batch).to(device)), dim=1)[0]
 
-        self.loss = self.criterion(policy_q, y_batch)
+        self.loss = self.criterion(current_state_q, y_batch).mean()
+        # print("current_state_q: " + str(current_state_q))
+        # print("y_batch: " + str(y_batch))
+        # print("loss: " + str(self.loss))
 
         self.optimizer.zero_grad()
         self.loss.backward()
@@ -151,3 +140,18 @@ class Agent(AgentConfig, EnvConfig):
         self.epsilon *= self.epsilon_decay_rate
         self.epsilon = max(self.epsilon, self.epsilon_minimum)
 
+
+def plot_graph(reward_history):
+    df = pd.DataFrame({'x': range(len(reward_history)), 'Score': reward_history})
+    plt.style.use('seaborn-darkgrid')
+    palette = plt.get_cmap('Set1')
+    num = 0
+    for column in df.drop('x', axis=1):
+        num += 1
+        plt.plot(df['x'], df[column], marker='', color=palette(num), linewidth=1, alpha=0.9, label=column)
+    # plt.legend(loc=2, ncol=1)
+    plt.title("CartPole", fontsize=14)
+    plt.xlabel("step", fontsize=12)
+    plt.ylabel("score", fontsize=12)
+
+    plt.savefig('score.png')

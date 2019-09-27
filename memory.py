@@ -25,6 +25,7 @@ class ReplayMemory:
         self.next_states[self.current] = next_state
 
         self.current = (self.current + 1) % self.memory_size
+        self.count += 1
 
     def sample(self, batch_size):
         state_batch = []
@@ -37,8 +38,7 @@ class ReplayMemory:
             a = 1  # TODO: implement PER
         else:  # randomly select samples from memory
             for i in range(batch_size):
-                # data_index = random.randint(0, len(self.states))
-                data_index = random.randint(0, self.current)  # TODO: use the above line after testing
+                data_index = random.randint(0, self.current-1 if self.count < self.memory_size else self.memory_size)
                 state_batch.append(self.states[data_index])
                 reward_batch.append(self.rewards[data_index])
                 action_batch.append(self.actions[data_index])
