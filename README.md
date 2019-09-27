@@ -7,15 +7,23 @@
 ### Hyperparameters Used
 
 gamma = 0.99
+
 train_freq = 1 (step)
+
 start_learning = 10
+
 memory_size = 1000000
+
 batch_size = 32
+
 reset_every = 10 (terminated episode)
 
 epsilon = 1
+
 epsilon_minimum = 0.1
+
 epsilon_decay_rate = 0.9999
+
 learning_rate = 0.001
 
 ### Tips for Debugging
@@ -29,4 +37,3 @@ learning_rate = 0.001
 ### Original Paper
 
 [Playing Atari with Deep Reinforcement Learning](https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf)
-
