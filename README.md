@@ -4,6 +4,8 @@
 
 ![img](https://github.com/RPC2/DQN_PyTorch/blob/master/score.png)
 
+OpenAI [defines](https://github.com/openai/gym/blob/master/gym/envs/classic_control/cartpole.py) CartPole as solved "when the average reward is greater than or equal to 195.0 over 100 consecutive trials."
+
 ### Hyperparameters Used
 
 gamma = 0.99
