@@ -51,10 +51,7 @@ class Agent(AgentConfig, EnvConfig):
             total_episode_reward = 0
             frames_for_gif = []
 
-            if episode % self.gif_every == 0:
-                self.gif = True
-            else:
-                self.gif = False
+            self.gif = True if episode % self.gif_every == 0 else False
 
             # Get initial state
             state, reward, action, terminal = self.new_random_game()
