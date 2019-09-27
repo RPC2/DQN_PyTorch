@@ -32,7 +32,7 @@ learning_rate = 0.001
 2. A nice reference to interpret state observation and your agent's actions: OpenAI's [documentation](https://github.com/openai/gym/tree/master/gym/envs). 
 3. After checking each variable, see if your program flow is correct. This can be done by inspecting your variables or compare with other working code.
 4. If you're sure about variable content and program flow working correctly - congratulations! Adjust your hyperparameters and you'll get a rough sense on how each hyperparameter invokes changes in performance.
-5. One key factor of me judging whether my agent is learning effectively is the Q value of each state. At the beginning the Q values might be quite different (since it depends on network initialization), with one action strictly dominate the other. As time goes on, the difference starts to shrink and the performance starts to take off when the Q values of actions start to get close to each other. Similarly, try to scrutinize the actual values of your key variables, and you might get insights from it :).
+5. One key factor of me judging whether my agent is learning effectively is the Q value of each state. At the beginning the Q values might be quite different (since it depends on network initialization), with one action strictly dominate the other. As time goes on, the difference starts to shrink and the performance takes off when the Q values of actions gets close to each other. Similarly, try to scrutinize the actual values of your key variables, and you might get insights from it :).
 
 ### Original Paper
 
